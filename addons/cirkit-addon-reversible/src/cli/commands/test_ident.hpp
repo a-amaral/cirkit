@@ -25,39 +25,38 @@
  */
 
 /**
- * @file remove_dup_gates.hpp
+ * @file test_ident.hpp
  *
- * @brief remove dupplicat adjacent gates that are self inverse
+ * @brief Tabu Search to optimize reversible circuit
  *
  * @author Gerhard Dueck
- * @since  2.1
+ * @2
  */
 
-#ifndef REMOVE_DUP_GATES_HPP
-#define REMOVE_DUP_GATES_HPP
+#ifndef CLI_TEST_IDENT_COMMAND_HPP
+#define CLI_TEST_IDENT_COMMAND_HPP
 
 #include <reversible/circuit.hpp>
+#include <cli/cirkit_command.hpp>
 
 namespace cirkit
 {
 
-circuit remove_dup_gates( const circuit& circ );
-bool can_be_removed(const gate& g1, const gate& g2 );
-bool gates_can_move( const gate& g1, const gate& g2 );
-bool gates_can_move( const gate& g1, const gate& g2, const gate& g3, const gate& g4 );
-bool gates_do_not_intersect( const gate& g1, const gate& g2 );
-bool gates_can_merge( const gate& g1, const gate& g2, gate& res);
-bool gates_can_merge( const gate& g1, const gate& g2, const gate& g3, gate& res);
-bool is_T_gate( const gate& g );
-bool is_T_star_gate( const gate& g );
-bool is_S_gate( const gate& g );
-bool is_S_star_gate( const gate& g );
-bool is_Z_gate( const gate& g );
-bool is_Y_gate( const gate& g );
-bool is_RZ_gate( const gate& g );
-bool is_V_gate( const gate& g );
-bool is_V_star_gate( const gate& g );
-bool is_X_gate( const gate& g );
+class test_ident_command : public cirkit_command
+    {
+    public:
+        test_ident_command( const environment::ptr& env );
+
+protected:
+  bool execute();
+  rules_t validity_rules() const;
+
+private:
+  
+	
+public:
+  log_opt_t log() const;
+};
 
 }
 
