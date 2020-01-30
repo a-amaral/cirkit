@@ -43,7 +43,8 @@
 #include <reversible/functions/is_identity.hpp>
 #include <reversible/functions/reverse_circuit.hpp>
 #include <reversible/functions/remove_dup_gates.hpp>
-
+#include <reversible/functions/match_templates.hpp>
+#include <reversible/functions/clifford_templates.hpp>
 
 
 #include <cli/commands/rules.hpp>
@@ -58,47 +59,101 @@ test_ident_command::test_ident_command(const environment::ptr& env)
 {
 	opts.add_options()
     ( "verbose,v",	"be verbose")
+    ( "filter,f", "filter identities")
+    ( "read_templ,r", "read templates")
+    ( "print_templ,p", "print templates")
+    ( "test,t", "test templates matching (very simplistic)")
     ;
-    add_new_option();
+ //   add_new_option();
 }
 
+/*
 command::rules_t test_ident_command::validity_rules() const
 {
 	 return {has_store_element<circuit>( env )};
-
 }
-
+*/
 
 
 bool test_ident_command::execute()
 {
-	auto& circuits = env->store<circuit>();
+	if( is_set( "read_templ" ) )
+	{
+		std::string filename;
+    	std::cout << "Enter the file name for the templates ";
+      	std::cin >> filename;
+      	std::ifstream templ_file ( filename );
+      	int n_templs; // number of templates
+      	templ_file >> n_templs;
+      	Clifford_Template new_templ;
+      	for( int i = 0; i < n_templs; i++ )
+      	{
+      		new_templ.read( templ_file );
+      		cliff_templates.push_back( new_templ );
+      		new_templ.clear();
+      	}
+	}
 
-	std::ifstream fileList ("file_list.txt");
-	std::ofstream filterfile ("filter/file_list.txt");
-	std::string infile_qc;
-	circuit circ_working, circ_reduced;
- 	if ( !fileList.is_open() )
- 	{
- 		std::cout << "ERROR cannot open file file_list.txt\n";
- 		return false;
- 	}
+	if( is_set( "print_templ" ) )
+		{
+			for (std::vector<Clifford_Template>::iterator it = cliff_templates.begin() ; it != cliff_templates.end(); ++it)
+			{
+				it->print();
+			}
+		}
 
- 	fileList >> infile_qc;
- 	while( !fileList.eof() )
- 	{
- 		circ_working = read_qc( infile_qc );
- 		circ_reduced = remove_dup_gates( circ_working );
- 		if( circ_working.num_gates() == circ_reduced.num_gates() )
- 		{
- 			filterfile << infile_qc << std::endl;
- 			write_qc( circ_working, "filter/" + infile_qc, false );
- 		}
- 		fileList >> infile_qc;
- 	}
- 	filterfile.close();
+
+	if( is_set( "filter" ) )
+	{
+		std::ifstream fileList ("file_list.txt");
+		std::ofstream filterfile ("filter/file_list.txt");
+		std::string infile_qc;
+		circuit circ_working, circ_reduced;
+		int not_reduced = 0, n = 0;
+
+	 	if ( !fileList.is_open() )
+	 	{
+	 		std::cout << "ERROR cannot open file file_list.txt\n";
+	 		return false;
+	 	}
+
+	 	fileList >> infile_qc;
+	 	while( !fileList.eof() )
+	 	{
+	 		n++;
+	 		circ_working = read_qc( infile_qc );
+	 		circ_reduced = remove_dup_gates( circ_working );
+	 		if( circ_working.num_gates() == circ_reduced.num_gates() )
+	 		{
+	 			bool flag = match_any_template( circ_reduced, cliff_templates );
+	 		}
+	 		if( circ_working.num_gates() == circ_reduced.num_gates() )
+	 		{
+	 			filterfile << infile_qc << std::endl;
+	 			write_qc( circ_working, "filter/" + infile_qc, false );
+	 			not_reduced++;
+	 		}
+	 		fileList >> infile_qc;
+	 		if ( n%10000 == 0 )
+	 		{
+	 			std::cout << not_reduced << "\n";
+	 		}
+	 	}
+	 	filterfile.close();
+	}
+
+	if( is_set( "test" ) )
+	{
+		auto& circuits = env->store<circuit>();
+    	circuit circ_working = circuits.current();
+    	bool flag = match_any_template( circ_working, cliff_templates );
+    	std::cout << "flag = " << flag << std::endl;
+    	circuits.extend();
+    	circuits.current() = circ_working;
+	}
 
 	return true;
+
 }
 
 command::log_opt_t test_ident_command::log() const
