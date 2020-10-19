@@ -80,7 +80,7 @@ ibm_command::ibm_command( const environment::ptr& env )
     ( "ibm_qx4,4", "The IBM Qx4 is the target")
     ( "verbose,v",  "verbose" )
     ( "swap,s", "use swap based instead of template transformations")
-    // ( "toffoli", value_with_default(&type), "transform Toffoli")
+    ( "matrix,p", "just print to matrix")
     ;
   add_new_option();
 }
@@ -91,7 +91,6 @@ command::rules_t ibm_command::validity_rules() const
   return {has_store_element<circuit>( env )};
 }
 
-    
 bool ibm_command::execute()
 {
     std::vector<std::vector<unsigned>> qx2 ={{0,0,0,10,10},{4,0,0,10,10},{4,4,0,4,4},{10,10,0,0,0},{10,10,0,4,0}};
@@ -107,6 +106,51 @@ bool ibm_command::execute()
         add_line_to_circuit( circ_working, "i" + boost::lexical_cast<std::string>(i) , "o" + boost::lexical_cast<std::string>(i));
     }
     
+    if( is_set( "matrix") )
+    {
+        int circMatrix[5][5];
+        for (int i = 0; i < 5; ++i)
+            for (int j = 0; j < 5; ++j)
+                circMatrix[i][j] = 0;
+        int maior = 0;
+        for ( const auto& gate : circ_working ){
+            if ( is_toffoli( gate ) && gate.controls().size() == 1 ){
+                int linha = gate.controls().front().line();
+                int coluna = gate.targets().front(); 
+                circMatrix[linha][coluna]++;
+                if (circMatrix[linha][coluna] > maior){
+                    maior = circMatrix[linha][coluna];
+                }
+            }
+        }
+
+        int matrixVector[5];
+        int maiorVector = 0;
+        // for (int i = 0; i < 5; ++i)
+        //     for (int j = 0; j < 5; ++j)
+        //         std::cout << circMatrix[i][j] << " ";
+        // std::cout << std::endl;
+
+        for (int i = 0; i < 5; ++i)
+        {
+            matrixVector[i] = 0;
+            for (int j = 0; j < 5; ++j)
+            {
+                matrixVector[i] = matrixVector[i] + circMatrix[i][j] + circMatrix[j][i];
+            }
+            if (matrixVector[i] > maiorVector)
+                maiorVector = matrixVector[i];
+        }
+        // for (int i = 0; i < 5; ++i)
+        //     for (int j = 0; j < 5; ++j)
+        //         std::cout << float(float(circMatrix[i][j])/float(maior)) << " ";
+        // std::cout << std::endl;
+        for (int i = 0; i < 5; ++i)
+            std::cout << matrixVector[i] << " ";
+            // std::cout << float(float(matrixVector[i])/float(maiorVector)) << " ";
+        // std::cout << std::endl;
+    }
+
     if( !is_set( "all_perm" ) )
     {
         if ( is_set( "ibm_qx4" ) )
@@ -134,7 +178,9 @@ bool ibm_command::execute()
     {
         int perm[5] = {0, 1, 2, 3, 4}, inv_perm[5], best_perm[5] = {0, 1, 2, 3, 4};
         unsigned best_cost = UINT_MAX;
+        auto xx = circ_working.num_gates();
         circuit circ_best, permuted;
+        std::vector<std::vector<int>> bp;
         do
         {
             clear_circuit(permuted);
@@ -171,13 +217,26 @@ bool ibm_command::execute()
             
             if( best_cost > circ_IBM.num_gates() )
             {
-  //              std::cout << "new best_cost = " << circ_IBM.num_gates() << "\n";
+                bp.clear();
+                // std::cout << "new best_cost = " << circ_IBM.num_gates() << "\n";
                 best_cost = circ_IBM.num_gates();
                 circ_best = circ_IBM;
+                std::vector<int> v(5,0);
                 for( int i = 0; i < 5; i++ )
                 {
                     best_perm[i] = perm[i];
+                    v[i] = perm[i];
                 }
+                bp.push_back(v);
+            }
+            else if( best_cost == circ_IBM.num_gates() )
+            {
+                std::vector<int> v(5,0);
+                for( int i = 0; i < 5; i++ )
+                {
+                    v[i] = perm[i];
+                }
+                bp.push_back(v);
             }
 
             // // undo the permutation
@@ -193,16 +252,59 @@ bool ibm_command::execute()
         }
         circuits.current() = circ_best;
         std::cout << "best permutation = ";
-        // std::cout << " best permutation = ";
         for( int i = 0; i < 5; i++ )
         {
             std::cout << best_perm[i] << " ";
         }
-        // std::cout << "gates = " << best_cost;
         std::cout << "gates = " << best_cost << std::endl;
+        std::cout << "gates = " << best_cost - xx << std::endl;
+
+        
+        if( is_set( "matrix") )
+        {
+            int circMatrix[5][5];
+            for (int i = 0; i < 5; ++i)
+                for (int j = 0; j < 5; ++j)
+                    circMatrix[i][j] = 0;
+            int maior = 0;
+            for ( const auto& gate : circ_working ){
+                if ( is_toffoli( gate ) && gate.controls().size() == 1 ){
+                    int linha = gate.controls().front().line();
+                    int coluna = gate.targets().front(); 
+                    circMatrix[linha][coluna]++;
+                    if (circMatrix[linha][coluna] > maior){
+                        maior = circMatrix[linha][coluna];
+                    }
+                }
+            }
+
+            int matrixVector[5];
+            int maiorVector = 0;
+            for (int i = 0; i < 5; ++i)
+                for (int j = 0; j < 5; ++j)
+                    std::cout << circMatrix[i][j] << " ";
+            for (int i = 0; i < 5; ++i){
+                matrixVector[i] = 0;
+                for (int j = 0; j < 5; ++j){
+                    matrixVector[i] = matrixVector[i] + circMatrix[i][j] + circMatrix[j][i];
+                }
+                if (matrixVector[i] > maiorVector)
+                    maiorVector = matrixVector[i];
+            }
+            for( int i = 0; i < 5; i++ )
+                std::cout << best_perm[i] << " ";
+            std::cout << std::endl;
+            for (int i = 0; i < 5; ++i)
+                for (int j = 0; j < 5; ++j)
+                    std::cout << float(float(circMatrix[i][j])/float(maior)) << " ";
+            std::cout << std::endl;
+            for (int i = 0; i < 5; ++i)
+                std::cout << float(float(matrixVector[i])/float(maiorVector)) << " ";
+            std::cout << std::endl;
+        }
     }
     // std::cout << "gates = " << circ_IBM.num_gates() << std::endl;
-
+        
     return true;
 }
 

@@ -132,7 +132,6 @@ void Clifford_Template::convert_circ( circuit &circ )
         }
         i++;
     }
-
 }
 
 void Clifford_Template::print( )
